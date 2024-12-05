@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forex Signal Bot</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      background-color: #f9f9f9;
+    }
+  </style>
+</head>
+<body>
+  <h1>OTC Forex Signal Bot</h1>
+  <div>
+    <label for="currencyPairs">Currency Pair:</label>
+    <select id="currencyPairs">
+      <option value="EURUSD">EUR/USD</option>
+      <option value="GBPUSD">GBP/USD</option>
+      <option value="USDJPY">USD/JPY</option>
+      <option value="AUDUSD">AUD/USD</option>
+      <option value="USDCAD">USD/CAD</option>
+    </select>
+    <button id="startBot">Start Bot</button>
+    <button id="stopBot">Stop Bot</button>
+  </div>
+
+  <div id="output">
+    <h3>Signals:</h3>
+    <ul id="signals"></ul>
+  </div>
+
+  <script>
+    let botInterval;
+    const utcOffset = 5.5; // UTC+5:30
+
+    // Fetch Forex Data (Mock API: Replace with real API)
+    async function fetchForexData(currencyPair) {
+      // Example URL for a real API (Replace with your API Key and URL):
+      // const apiKey = "YOUR_API_KEY";
+      // const url = `https://api.example.com/forex?symbol=${currencyPair}&interval=1min&apikey=${apiKey}`;
+
+      // Mock data for demonstration
+      const mockData = {
+        prices: Array.from({ length: 10 }, () => Math.random() * 100),
+      };
+      return mockData.prices;
+    }
+
+    // Calculate EMA
+    function calculateEMA(data, period) {
+      const k = 2 / (period + 1);
+      const ema = [data[0]];
+      for (let i = 1; i < data.length; i++) {
+        ema.push(data[i] * k + ema[i - 1] * (1 - k));
+      }
+      return ema;
+    }
+
+    // Calculate RSI
+    function calculateRSI(data, period) {
+      let gains = 0,
+        losses = 0;
+      const rsi = [];
+      for (let i = 1; i < data.length; i++) {
+        const diff = data[i] - data[i - 1];
+        if (diff > 0) gains += diff;
+        else losses -= diff;
+
+        if (i >= period) {
+          const avgGain = gains / period;
+          const avgLoss = losses / period;
+          const rs = avgGain / avgLoss;
+          rsi.push(100 - 100 / (1 + rs));
+          if (data[i - period]) {
+            const prevDiff = data[i - period + 1] - data[i - period];
+            if (prevDiff > 0) gains -= prevDiff;
+            else losses += prevDiff;
+          }
+        }
+      }
+      return rsi;
+    }
+
+    // Generate Signal
+    function generateSignal(prices, ema, rsi) {
+      const lastPrice = prices[prices.length - 1];
+      const lastEMA = ema[ema.length - 1];
+      const lastRSI = rsi[rsi.length - 1];
+
+      if (lastPrice > lastEMA && lastRSI > 50) return "Buy";
+      if (lastPrice < lastEMA && lastRSI < 50) return "Sell";
+      return "Hold";
+    }
+
+    // Bot Logic
+    async function runBot() {
+      const currencyPair = document.getElementById("currencyPairs").value;
+
+      const prices = await fetchForexData(currencyPair);
+      const ema = calculateEMA(prices, 10); // 10-period EMA
+      const rsi = calculateRSI(prices, 14); // 14-period RSI
+      const signal = generateSignal(prices, ema, rsi);
+
+      const signalOutput = document.getElementById("signals");
+      const time = new Date(
+        Date.now() + utcOffset * 60 * 60 * 1000
+      ).toLocaleTimeString();
+
+      const listItem = document.createElement("li");
+      listItem.textContent = `${time} - ${currencyPair} - Signal: ${signal}`;
+      signalOutput.appendChild(listItem);
+    }
+
+    // Start Bot
+    document.getElementById("startBot").addEventListener("click", () => {
+      if (botInterval) clearInterval(botInterval);
+      botInterval = setInterval(runBot, 60000); // Run every 1 minute
+    });
+
+    // Stop Bot
+    document.getElementById("stopBot").addEventListener("click", () => {
+      clearInterval(botInterval);
+    });
+  </script>
+</body>
+</html>
